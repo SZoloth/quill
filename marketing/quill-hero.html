@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1200, height=630">
+  <title>Quill Hero</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=SF+Pro+Display:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Catppuccin Mocha */
+      --base: #1e1e2e;
+      --mantle: #181825;
+      --crust: #11111b;
+      --surface0: #313244;
+      --surface1: #45475a;
+      --surface2: #585b70;
+      --overlay0: #6c7086;
+      --overlay1: #7f849c;
+      --text: #cdd6f4;
+      --subtext0: #a6adc8;
+      --subtext1: #bac2de;
+      --peach: #fab387;
+      --green: #a6e3a1;
+      --blue: #89b4fa;
+      --mauve: #cba6f7;
+    }
+
+    body {
+      width: 1200px;
+      height: 630px;
+      background: linear-gradient(135deg, #0f0f17 0%, #1a1a2e 50%, #16213e 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle grid pattern */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(250, 179, 135, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(250, 179, 135, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Glow effect */
+    .glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(250, 179, 135, 0.15) 0%, transparent 70%);
+      top: -100px;
+      right: -100px;
+      pointer-events: none;
+    }
+
+    .glow-2 {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(137, 180, 250, 0.1) 0%, transparent 70%);
+      bottom: -100px;
+      left: -50px;
+      pointer-events: none;
+    }
+
+    /* macOS Window */
+    .window {
+      width: 900px;
+      background: var(--base);
+      border-radius: 12px;
+      box-shadow:
+        0 50px 100px -20px rgba(0, 0, 0, 0.5),
+        0 30px 60px -30px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Title bar */
+    .titlebar {
+      height: 38px;
+      background: var(--mantle);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--surface0);
+    }
+
+    .traffic-lights {
+      display: flex;
+      gap: 8px;
+    }
+
+    .traffic-light {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .traffic-light.red { background: #ff5f57; }
+    .traffic-light.yellow { background: #febc2e; }
+    .traffic-light.green { background: #28c840; }
+
+    .titlebar-center {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .titlebar-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--subtext0);
+    }
+
+    .titlebar-actions {
+      display: flex;
+      gap: 16px;
+    }
+
+    .titlebar-btn {
+      font-size: 12px;
+      color: var(--overlay1);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Main content */
+    .content {
+      display: flex;
+      height: 420px;
+    }
+
+    /* Editor */
+    .editor {
+      flex: 1;
+      padding: 32px 40px;
+      font-family: 'Newsreader', Georgia, serif;
+      color: var(--text);
+      line-height: 1.8;
+      font-size: 15px;
+      position: relative;
+    }
+
+    .editor h1 {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+
+    .editor p {
+      margin-bottom: 16px;
+    }
+
+    .highlight {
+      background: linear-gradient(120deg, rgba(250, 179, 135, 0.2) 0%, rgba(250, 179, 135, 0.3) 100%);
+      border-bottom: 2px solid var(--peach);
+      padding: 2px 0;
+    }
+
+    .highlight-blue {
+      background: linear-gradient(120deg, rgba(137, 180, 250, 0.15) 0%, rgba(137, 180, 250, 0.25) 100%);
+      border-bottom: 2px solid var(--blue);
+      padding: 2px 0;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--mantle);
+      border-left: 1px solid var(--surface0);
+      padding: 16px;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .sidebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .sidebar-count {
+      font-size: 11px;
+      color: var(--subtext0);
+    }
+
+    /* Comment cards */
+    .comment {
+      background: var(--surface0);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--peach);
+    }
+
+    .comment.blue {
+      border-left-color: var(--blue);
+    }
+
+    .comment-text {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .comment-quote {
+      font-size: 11px;
+      color: var(--subtext0);
+      font-style: italic;
+      padding-left: 8px;
+      border-left: 2px solid var(--surface1);
+      margin-bottom: 8px;
+    }
+
+    .comment-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .comment-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--surface1);
+      color: var(--subtext1);
+    }
+
+    .comment-resolve {
+      font-size: 10px;
+      color: var(--overlay1);
+    }
+
+    /* Branding */
+    .brand {
+      position: absolute;
+      bottom: 30px;
+      left: 50px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 2;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--peach) 0%, #f5a97f 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 8px 32px rgba(250, 179, 135, 0.3);
+    }
+
+    .brand-text {
+      color: white;
+    }
+
+    .brand-name {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-tagline {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="glow-2"></div>
+
+  <div class="brand">
+    <div class="brand-icon">🪶</div>
+    <div class="brand-text">
+      <div class="brand-name">Quill</div>
+      <div class="brand-tagline">Writing assistant for Claude Code</div>
+    </div>
+  </div>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="traffic-lights">
+        <div class="traffic-light red"></div>
+        <div class="traffic-light yellow"></div>
+        <div class="traffic-light green"></div>
+      </div>
+      <div class="titlebar-center">
+        <span class="titlebar-title">draft-proposal.md</span>
+      </div>
+      <div class="titlebar-actions">
+        <span class="titlebar-btn">Copy</span>
+        <span class="titlebar-btn">Export</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="editor">
+        <h1>Product Strategy Proposal</h1>
+        <p>
+          Our approach focuses on <span class="highlight">three core principles</span> that
+          differentiate us from existing solutions. First, we prioritize user autonomy
+          over algorithmic curation.
+        </p>
+        <p>
+          The market research indicates a <span class="highlight-blue">significant opportunity</span>
+          in the enterprise segment, particularly among teams adopting AI-assisted workflows.
+          Early adopters have shown 40% productivity gains.
+        </p>
+        <p>
+          Key success metrics include user retention, time-to-value, and the quality
+          of generated outputs as measured by acceptance rate.
+        </p>
+      </div>
+
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-title">Comments</span>
+          <span class="sidebar-count">2</span>
+        </div>
+
+        <div class="comment">
+          <div class="comment-text">Consider adding specific data to support this claim</div>
+          <div class="comment-quote">"three core principles"</div>
+          <div class="comment-meta">
+            <span class="comment-tag">Clarity</span>
+            <span class="comment-resolve">Resolve</span>
+          </div>
+        </div>
+
+        <div class="comment blue">
+          <div class="comment-text">Link to the market research report here</div>
+          <div class="comment-quote">"significant opportunity"</div>
+          <div class="comment-meta">
+            <span class="comment-tag">Citation</span>
+            <span class="comment-resolve">Resolve</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1024px;
+      height: 1024px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+    }
+    .icon {
+      width: 824px;
+      height: 824px;
+      background: linear-gradient(135deg, #fab387 0%, #f5a97f 50%, #eba070 100%);
+      border-radius: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 40px 80px rgba(0, 0, 0, 0.3),
+        inset 0 2px 0 rgba(255, 255, 255, 0.2),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+    .icon::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      height: 200px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%);
+      border-radius: 170px 170px 0 0;
+    }
+    .feather {
+      font-size: 420px;
+      filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.2));
+    }
+  </style>
+</head>
+<body>
+  <div class="icon">
+    <span class="feather">🪶</span>
+  </div>
+</body>
+</html>
