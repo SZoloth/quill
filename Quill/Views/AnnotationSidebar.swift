@@ -47,17 +47,9 @@ struct AnnotationSidebar: View {
             // Compact header with inline filter toggle
             HStack(spacing: 12) {
                 // Title with count
-                HStack(spacing: 6) {
-                    Text("Comments")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Theme.primaryText)
-
-                    if unresolvedCount > 0 {
-                        Text("\(unresolvedCount)")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(Theme.subtext0)
-                    }
-                }
+                Text(unresolvedCount > 0 ? "Comments (\(unresolvedCount))" : "Comments")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Theme.primaryText)
 
                 Spacer()
 
@@ -101,7 +93,7 @@ struct AnnotationSidebar: View {
                 .help("Filter annotations")
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 16)
 
             // Expandable filter section
             if isFilterExpanded {
@@ -171,12 +163,16 @@ struct AnnotationSidebar: View {
                 )
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 1) {
+                    LazyVStack(spacing: 0) {
                         ForEach(filteredAnnotations) { annotation in
-                            AnnotationCard(annotation: annotation)
+                            VStack(spacing: 0) {
+                                AnnotationCard(annotation: annotation)
+                                Divider()
+                                    .background(Theme.surface1.opacity(0.3))
+                            }
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)
                 }
             }
 
@@ -257,7 +253,7 @@ struct EmptyStateView: View {
                     .font(.system(size: 28, weight: .light))
                     .foregroundColor(Theme.overlay0)
 
-                Text("No comments")
+                Text("No comments yet")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(Theme.subtext0)
 
@@ -280,7 +276,7 @@ struct EmptyStateView: View {
                     .buttonStyle(.plain)
                     .padding(.top, 4)
                 } else {
-                    Text("Select text to comment")
+                    Text("Select text to start")
                         .font(.system(size: 11))
                         .foregroundColor(Theme.overlay0)
                 }
@@ -413,8 +409,8 @@ struct CategoryPill: View {
                 Text(label)
                     .font(.system(size: 10))
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
             .background(isSelected ? Theme.surface1 : Color.clear)
             .foregroundColor(isSelected ? Theme.primaryText : Theme.subtext0)
             .cornerRadius(10)
@@ -534,7 +530,7 @@ struct AnnotationCard: View {
                 .frame(width: 3),
             alignment: .leading
         )
-        .opacity(annotation.isResolved ? 0.5 : 1)
+        .opacity(annotation.isResolved ? 0.7 : 1)
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovered = hovering
@@ -604,10 +600,10 @@ struct AgentResponseBadge: View {
 
     private var actionColor: Color {
         switch response.action {
-        case .resolve: return .green
-        case .clarify: return .orange
-        case .suggest: return .blue
-        case .reject: return .red
+        case .resolve: return Theme.green
+        case .clarify: return Theme.yellow
+        case .suggest: return Theme.blue
+        case .reject: return Theme.red
         }
     }
 

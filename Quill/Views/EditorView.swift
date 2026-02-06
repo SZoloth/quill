@@ -8,11 +8,6 @@ struct EditorView: View {
     @Binding var showingAnnotationForm: Bool
 
     @State private var titleText: String = ""
-    @State private var selectionY: CGFloat = 0
-    @State private var hasSelection: Bool = false
-    @State private var showCommentCard: Bool = false
-    @State private var commentText: String = ""
-    @State private var selectedCategory: AnnotationCategory? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -25,14 +20,10 @@ struct EditorView: View {
                     .foregroundColor(Theme.primaryText)
                     .padding(.horizontal, 24)
                     .padding(.top, 24)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 24)
                     .onChange(of: titleText) { _, newValue in
                         store.updateTitle(newValue)
                     }
-
-                Divider()
-                    .background(Theme.border)
-                    .padding(.horizontal, 24)
 
                 // Editor
                 AnnotatedTextEditor(
@@ -45,15 +36,6 @@ struct EditorView: View {
                     onSelectionChange: { range, text, yPosition in
                         selectedRange = range
                         selectedText = text
-                        if let y = yPosition, range != nil && !text.isEmpty {
-                            selectionY = y + 100 // Offset for title area
-                            hasSelection = true
-                        } else {
-                            hasSelection = false
-                            if !showCommentCard {
-                                // Only hide if comment card isn't open
-                            }
-                        }
                     },
                     onAnnotationClick: { id in
                         store.selectAnnotation(id)
@@ -62,56 +44,6 @@ struct EditorView: View {
                 .padding(24)
             }
             .frame(maxWidth: .infinity)
-
-            // Right margin for comments (Google Docs style)
-            ZStack(alignment: .topTrailing) {
-                // Margin background
-                Rectangle()
-                    .fill(Theme.background)
-                    .frame(width: 60)
-
-                // Comment icon or card
-                if showCommentCard {
-                    // Comment card (expanded form)
-                    CommentCard(
-                        commentText: $commentText,
-                        category: $selectedCategory,
-                        onCancel: {
-                            showCommentCard = false
-                            commentText = ""
-                        },
-                        onSubmit: {
-                            if let range = selectedRange {
-                                store.addAnnotation(
-                                    range: TextRange(startOffset: range.location, endOffset: range.location + range.length),
-                                    selectedText: selectedText,
-                                    category: selectedCategory,
-                                    comment: commentText
-                                )
-                            }
-                            showCommentCard = false
-                            commentText = ""
-                            selectedCategory = nil
-                            hasSelection = false
-                        }
-                    )
-                    .frame(width: 280)
-                    .offset(x: -220, y: max(0, selectionY - 20))
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
-                    .animation(.easeOut(duration: 0.2), value: showCommentCard)
-                } else if hasSelection {
-                    // Comment icon toolbar
-                    MarginToolbar(
-                        onComment: {
-                            showCommentCard = true
-                        }
-                    )
-                    .offset(y: max(0, selectionY - 10))
-                    .transition(.opacity)
-                    .animation(.easeOut(duration: 0.15), value: hasSelection)
-                }
-            }
-            .frame(width: 60)
         }
         .background(Theme.background)
         .onAppear {
@@ -119,140 +51,6 @@ struct EditorView: View {
         }
         .onChange(of: store.document.id) { _, _ in
             titleText = store.document.title == "Untitled Document" ? "" : store.document.title
-            showCommentCard = false
-            commentText = ""
-        }
-    }
-}
-
-// MARK: - Margin Toolbar (Google Docs style icons)
-
-struct MarginToolbar: View {
-    let onComment: () -> Void
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Button(action: onComment) {
-                Image(systemName: "plus.bubble")
-                    .font(.system(size: 18))
-                    .foregroundColor(Theme.primaryText)
-                    .frame(width: 36, height: 36)
-                    .background(Theme.surface0)
-                    .clipShape(Circle())
-                    .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 1)
-            }
-            .buttonStyle(.plain)
-            .help("Add comment")
-        }
-        .padding(.trailing, 12)
-    }
-}
-
-// MARK: - Comment Card (Google Docs style)
-
-struct CommentCard: View {
-    @Binding var commentText: String
-    @Binding var category: AnnotationCategory?
-    let onCancel: () -> Void
-    let onSubmit: () -> Void
-
-    @FocusState private var isFocused: Bool
-    @State private var showCategories: Bool = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Category selector (optional, small)
-            HStack {
-                Button {
-                    showCategories.toggle()
-                } label: {
-                    HStack(spacing: 4) {
-                        if let cat = category {
-                            Circle()
-                                .fill(cat.color)
-                                .frame(width: 8, height: 8)
-                            Text(cat.label)
-                                .font(.caption)
-                        } else {
-                            Text("General")
-                                .font(.caption)
-                        }
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 8))
-                    }
-                    .foregroundColor(Theme.secondaryText)
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showCategories) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Button("General") {
-                            category = nil
-                            showCategories = false
-                        }
-                        .buttonStyle(.plain)
-
-                        Divider()
-
-                        ForEach(AnnotationCategory.allCases, id: \.self) { cat in
-                            Button {
-                                category = cat
-                                showCategories = false
-                            } label: {
-                                HStack {
-                                    Circle()
-                                        .fill(cat.color)
-                                        .frame(width: 8, height: 8)
-                                    Text(cat.label)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(8)
-                }
-
-                Spacer()
-            }
-
-            // Comment text field
-            TextField("Add a comment...", text: $commentText, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .foregroundColor(Theme.primaryText)
-                .lineLimit(2...6)
-                .focused($isFocused)
-                .onSubmit {
-                    if !commentText.isEmpty {
-                        onSubmit()
-                    }
-                }
-
-            // Action buttons
-            HStack {
-                Spacer()
-
-                Button("Cancel") {
-                    onCancel()
-                }
-                .buttonStyle(.plain)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(Theme.secondaryText)
-
-                Button("Comment") {
-                    onSubmit()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.primary)
-                .controlSize(.small)
-                .disabled(commentText.isEmpty)
-            }
-        }
-        .padding(12)
-        .background(Theme.cardBackground)
-        .cornerRadius(8)
-        .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
-        .onAppear {
-            isFocused = true
         }
     }
 }
@@ -273,7 +71,7 @@ struct AnnotatedTextEditor: NSViewRepresentable {
         textView.delegate = context.coordinator
         textView.isRichText = false
         textView.font = .monospacedSystemFont(ofSize: 15, weight: .regular)
-        textView.textContainerInset = NSSize(width: 0, height: 8)
+        textView.textContainerInset = NSSize(width: 16, height: 16)
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.allowsUndo = true
@@ -281,6 +79,12 @@ struct AnnotatedTextEditor: NSViewRepresentable {
         // Apply theme colors
         textView.backgroundColor = NSColor.themeBase
         textView.textColor = NSColor.themeText
+        
+        // Line spacing for reading comfort
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 6
+        textView.defaultParagraphStyle = paragraphStyle
+        
         textView.insertionPointColor = NSColor.themePrimary
 
         // Scroll view styling
@@ -331,12 +135,12 @@ struct AnnotatedTextEditor: NSViewRepresentable {
             }
 
             let isSelected = annotation.id == selectedAnnotationId
-            let baseColor = annotation.severity.color
-            let alpha: CGFloat = isSelected ? 0.4 : 0.2
+            let highlightColor = isSelected ? Theme.annotationHighlightSelected : Theme.annotationHighlight
+            let alpha: CGFloat = isSelected ? 0.3 : 0.12
 
             textStorage.addAttribute(
                 .backgroundColor,
-                value: NSColor(baseColor).withAlphaComponent(alpha),
+                value: NSColor(highlightColor).withAlphaComponent(alpha),
                 range: range
             )
         }
