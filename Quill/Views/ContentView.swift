@@ -33,6 +33,7 @@ struct ContentView: View {
                     selectedRange: selectedRange
                 )
                 .frame(minWidth: 280, maxWidth: 400)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .background(Theme.background)
@@ -43,7 +44,7 @@ struct ContentView: View {
                     openDocument()
                 } label: {
                     Label("Open", systemImage: "folder")
-                        .labelStyle(.titleAndIcon)
+                        .labelStyle(.iconOnly)
                 }
                 .help("Open file (Cmd+O)")
             }
@@ -69,8 +70,8 @@ struct ContentView: View {
                 Button {
                     copyPrompt()
                 } label: {
-                    Label("Copy", systemImage: "doc.on.clipboard")
-                        .labelStyle(.titleAndIcon)
+                    Label("Copy Prompt", systemImage: "doc.on.clipboard")
+                        .labelStyle(.iconOnly)
                 }
                 .help("Copy prompt (Cmd+Shift+C)")
 
@@ -78,7 +79,7 @@ struct ContentView: View {
                     exportForCLI()
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
-                        .labelStyle(.titleAndIcon)
+                        .labelStyle(.iconOnly)
                 }
                 .help("Export for CLI (Cmd+Shift+E)")
             }
@@ -158,7 +159,11 @@ struct FindBarView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Theme.surface1)
+        .background(Theme.surface0)
+        .overlay(
+            Divider().background(Theme.surface1.opacity(0.5)),
+            alignment: .bottom
+        )
         .onAppear {
             isFocused = true
         }

@@ -233,30 +233,8 @@ struct QuillApp: App {
     }
 
     private func showKeyboardShortcuts() {
-        let alert = NSAlert()
-        alert.messageText = "Keyboard Shortcuts"
-        alert.informativeText = """
-        Navigation:
-        Cmd+N         New Document
-        Cmd+O         Open File
-        Cmd+S         Save
-        Cmd+,         Settings
-
-        Annotations:
-        Cmd+Shift+A   Add Annotation
-        Cmd+]         Next Annotation
-        Cmd+[         Previous Annotation
-        Delete        Delete Selected
-
-        Export:
-        Cmd+Shift+C   Copy Prompt
-        Cmd+Shift+E   Export for CLI
-
-        View:
-        Cmd+Ctrl+S    Toggle Sidebar
-        """
-        alert.alertStyle = .informational
-        alert.runModal()
+        // Now handled by ShortcutsSettingsView in settings
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 }
 
@@ -285,6 +263,8 @@ struct SettingsView: View {
                 }
         }
         .frame(width: 500, height: 280)
+        .background(Theme.background)
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -303,6 +283,7 @@ struct GeneralSettingsView: View {
             }
         }
         .padding()
+        .background(Theme.background)
     }
 }
 
@@ -352,6 +333,7 @@ struct ShortcutsSettingsView: View {
             .foregroundColor(Theme.primaryText)
         }
         .padding()
+        .background(Theme.background)
     }
 }
 

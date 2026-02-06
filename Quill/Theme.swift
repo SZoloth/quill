@@ -50,6 +50,41 @@ struct Theme {
     static let warning = yellow
     static let error = red
     static let info = blue
+    static let annotationHighlight = mauve
+    static let annotationHighlightSelected = lavender
+
+    // MARK: - Spacing tokens
+    static let spacingXS: CGFloat = 4
+    static let spacingSM: CGFloat = 8
+    static let spacingMD: CGFloat = 12
+    static let spacingLG: CGFloat = 16
+    static let spacingXL: CGFloat = 24
+    static let spacingXXL: CGFloat = 32
+
+    // MARK: - Corner radius tokens
+    static let radiusSM: CGFloat = 4
+    static let radiusMD: CGFloat = 6
+    static let radiusLG: CGFloat = 8
+    static let radiusPill: CGFloat = 12
+
+    // MARK: - Pill component tokens
+    static let pillPaddingH: CGFloat = 10
+    static let pillPaddingV: CGFloat = 5
+
+    // MARK: - Shadow presets
+    struct Shadow {
+        static let subtle = (color: Color.black.opacity(0.1), radius: CGFloat(2), x: CGFloat(0), y: CGFloat(1))
+        static let card = (color: Color.black.opacity(0.15), radius: CGFloat(4), x: CGFloat(0), y: CGFloat(2))
+        static let elevated = (color: Color.black.opacity(0.2), radius: CGFloat(8), x: CGFloat(0), y: CGFloat(4))
+    }
+
+    // MARK: - Editor tokens
+    static let editorLineSpacing: CGFloat = 6
+    static let editorFontSize: CGFloat = 15
+    static let editorInsetH: CGFloat = 16
+    static let editorInsetV: CGFloat = 16
+    static let titleFontSize: CGFloat = 28
+    static let titleBottomPadding: CGFloat = 24
 }
 
 // Color extension for hex colors
