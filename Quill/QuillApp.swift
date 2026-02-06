@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 @main
 struct QuillApp: App {
     @StateObject private var store = DocumentStore()
+    @StateObject private var agentWatcher = AgentResponseWatcher()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var showingSidebar: Bool = true
 
@@ -11,9 +12,16 @@ struct QuillApp: App {
         WindowGroup {
             ContentView(showingSidebar: $showingSidebar)
                 .environmentObject(store)
+                .environmentObject(agentWatcher)
                 .frame(minWidth: 800, minHeight: 600)
                 .background(Theme.background)
                 .preferredColorScheme(.dark)
+                .onAppear {
+                    agentWatcher.startWatching()
+                }
+                .onDisappear {
+                    agentWatcher.stopWatching()
+                }
                 .onDrop(of: [.fileURL], isTargeted: nil) { providers in
                     handleFileDrop(providers)
                 }
@@ -116,6 +124,53 @@ struct QuillApp: App {
                     exportForCLI()
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
+            }
+
+            // MARK: - Agent Menu
+            CommandMenu("Agent") {
+                if agentWatcher.hasUnreadResponses {
+                    Button("View Agent Responses (\(agentWatcher.responses?.annotationResponses.count ?? 0))") {
+                        agentWatcher.markAllRead()
+                    }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                } else {
+                    Text("No agent responses")
+                        .foregroundColor(.secondary)
+                }
+
+                Divider()
+
+                if let updates = agentWatcher.responses?.documentUpdates, !updates.isEmpty {
+                    ForEach(updates.prefix(3)) { update in
+                        Button("Accept: \(update.summary.prefix(40))...") {
+                            agentWatcher.acceptDocumentUpdate(update, store: store)
+                        }
+                    }
+
+                    Divider()
+                }
+
+                Button("Clear Agent Responses") {
+                    agentWatcher.clearResponses()
+                }
+
+                Divider()
+
+                Button("Copy MCP Config") {
+                    let config = """
+                    {
+                      "mcpServers": {
+                        "quill": {
+                          "command": "node",
+                          "args": ["\(FileManager.default.homeDirectoryForCurrentUser.path)/quill-mcp/dist/index.js"]
+                        }
+                      }
+                    }
+                    """
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(config, forType: .string)
+                }
+                .help("Copy MCP server config for Claude Code or Cursor")
             }
 
             // MARK: - Help Menu additions

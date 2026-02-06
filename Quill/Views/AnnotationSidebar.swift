@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AnnotationSidebar: View {
     @EnvironmentObject var store: DocumentStore
+    @EnvironmentObject var agentWatcher: AgentResponseWatcher
     @Binding var showingAnnotationForm: Bool
     let selectedText: String
     let selectedRange: NSRange?
@@ -59,6 +60,21 @@ struct AnnotationSidebar: View {
                 }
 
                 Spacer()
+
+                // Agent activity indicator
+                if agentWatcher.hasUnreadResponses {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 9))
+                        Text("AI")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(Theme.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Theme.blue.opacity(0.12))
+                    .cornerRadius(10)
+                }
 
                 // Filter toggle
                 Button {
@@ -415,12 +431,18 @@ struct CategoryPill: View {
 
 struct AnnotationCard: View {
     @EnvironmentObject var store: DocumentStore
+    @EnvironmentObject var agentWatcher: AgentResponseWatcher
     let annotation: Annotation
 
     @State private var isHovered: Bool = false
+    @State private var showingSuggestionDiff: Bool = false
 
     private var isSelected: Bool {
         store.selectedAnnotationId == annotation.id
+    }
+
+    private var agentResponse: AgentAnnotationResponse? {
+        agentWatcher.responseFor(annotationId: annotation.id)
     }
 
     var body: some View {
@@ -449,6 +471,14 @@ struct AnnotationCard: View {
                         .padding(.vertical, 4)
                 }
                 .padding(.leading, 2)
+
+                // Agent response section
+                if let response = agentResponse {
+                    AgentResponseBadge(response: response, showDiff: $showingSuggestionDiff)
+                        .onAppear {
+                            agentWatcher.markRead(annotationId: annotation.id)
+                        }
+                }
 
                 // Footer: category tag + actions
                 HStack(spacing: 8) {
@@ -495,11 +525,12 @@ struct AnnotationCard: View {
         }
         .background(
             isSelected ? Theme.primary.opacity(0.08) :
+            agentResponse != nil ? Theme.blue.opacity(0.04) :
             isHovered ? Theme.surface0.opacity(0.5) : Color.clear
         )
         .overlay(
             Rectangle()
-                .fill(isSelected ? Theme.primary : Color.clear)
+                .fill(isSelected ? Theme.primary : agentResponse != nil ? Theme.blue.opacity(0.5) : Color.clear)
                 .frame(width: 3),
             alignment: .leading
         )
@@ -522,6 +553,19 @@ struct AnnotationCard: View {
                 }
             }
 
+            if let response = agentResponse, response.action == .suggest, let suggested = response.suggestedText {
+                Divider()
+                Button("Accept suggestion") {
+                    // Apply the suggested text change
+                    var content = store.document.content
+                    let start = content.index(content.startIndex, offsetBy: annotation.range.startOffset)
+                    let end = content.index(content.startIndex, offsetBy: min(annotation.range.endOffset, content.count))
+                    content.replaceSubrange(start..<end, with: suggested)
+                    store.updateContent(content)
+                    store.resolveAnnotation(annotation.id)
+                }
+            }
+
             Divider()
 
             Button("Copy text") {
@@ -540,5 +584,99 @@ struct AnnotationCard: View {
                 store.deleteAnnotation(annotation.id)
             }
         }
+    }
+}
+
+// MARK: - Agent Response Badge
+
+struct AgentResponseBadge: View {
+    let response: AgentAnnotationResponse
+    @Binding var showDiff: Bool
+
+    private var actionIcon: String {
+        switch response.action {
+        case .resolve: return "checkmark.circle.fill"
+        case .clarify: return "questionmark.circle.fill"
+        case .suggest: return "arrow.triangle.2.circlepath"
+        case .reject: return "xmark.circle.fill"
+        }
+    }
+
+    private var actionColor: Color {
+        switch response.action {
+        case .resolve: return .green
+        case .clarify: return .orange
+        case .suggest: return .blue
+        case .reject: return .red
+        }
+    }
+
+    private var actionLabel: String {
+        switch response.action {
+        case .resolve: return "Agent resolved"
+        case .clarify: return "Agent asks"
+        case .suggest: return "Agent suggests"
+        case .reject: return "Agent disagrees"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Header
+            HStack(spacing: 5) {
+                Image(systemName: actionIcon)
+                    .font(.system(size: 10))
+                    .foregroundColor(actionColor)
+
+                Text(actionLabel)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(actionColor)
+
+                Spacer()
+
+                Image(systemName: "sparkle")
+                    .font(.system(size: 8))
+                    .foregroundColor(Theme.subtext0.opacity(0.5))
+            }
+
+            // Message
+            Text(response.message)
+                .font(.system(size: 12))
+                .foregroundColor(Theme.primaryText.opacity(0.9))
+                .lineLimit(showDiff ? nil : 3)
+
+            // Suggestion preview
+            if response.action == .suggest, let suggested = response.suggestedText {
+                Button {
+                    showDiff.toggle()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: showDiff ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 8))
+                        Text(showDiff ? "Hide suggestion" : "Show suggestion")
+                            .font(.system(size: 10))
+                    }
+                    .foregroundColor(Theme.blue)
+                }
+                .buttonStyle(.plain)
+
+                if showDiff {
+                    Text(suggested)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(Theme.green.opacity(0.9))
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.green.opacity(0.08))
+                        .cornerRadius(4)
+                }
+            }
+        }
+        .padding(10)
+        .background(actionColor.opacity(0.06))
+        .cornerRadius(6)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(actionColor.opacity(0.15), lineWidth: 1)
+        )
     }
 }
