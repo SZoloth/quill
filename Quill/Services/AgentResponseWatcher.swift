@@ -111,6 +111,52 @@ class AgentResponseWatcher: ObservableObject {
         }
     }
 
+    // MARK: - Threaded conversations
+
+    /// Get the thread for a specific annotation
+    func threadFor(annotationId: UUID) -> AnnotationThread? {
+        responses?.threads?.first { $0.annotationId == annotationId.uuidString }
+    }
+
+    /// Add a human reply to an annotation thread and write to agent-response.json
+    func addHumanReply(annotationId: UUID, message: String) {
+        var file = responses ?? AgentResponseFile(
+            version: 1,
+            annotationResponses: [],
+            documentUpdates: [],
+            threads: [],
+            lastUpdated: ISO8601DateFormatter().string(from: Date())
+        )
+
+        // Ensure threads array exists
+        if file.threads == nil {
+            file.threads = []
+        }
+
+        let idString = annotationId.uuidString
+        let threadMessage = ThreadMessage(role: .human, message: message)
+
+        if let idx = file.threads?.firstIndex(where: { $0.annotationId == idString }) {
+            file.threads?[idx].messages.append(threadMessage)
+        } else {
+            let thread = AnnotationThread(annotationId: idString, messages: [threadMessage])
+            file.threads?.append(thread)
+        }
+
+        file.lastUpdated = ISO8601DateFormatter().string(from: Date())
+
+        // Write back to disk
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(file)
+            try data.write(to: responseURL)
+            responses = file
+        } catch {
+            lastError = "Failed to write reply: \(error.localizedDescription)"
+        }
+    }
+
     /// Clear all agent responses (reset for new editing session)
     func clearResponses() {
         try? FileManager.default.removeItem(at: responseURL)

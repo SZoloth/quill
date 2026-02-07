@@ -470,7 +470,7 @@ struct AnnotationCard: View {
 
                 // Agent response section
                 if let response = agentResponse {
-                    AgentResponseBadge(response: response, showDiff: $showingSuggestionDiff)
+                    AgentResponseBadge(response: response, annotation: annotation, showDiff: $showingSuggestionDiff)
                         .onAppear {
                             agentWatcher.markRead(annotationId: annotation.id)
                         }
@@ -586,8 +586,15 @@ struct AnnotationCard: View {
 // MARK: - Agent Response Badge
 
 struct AgentResponseBadge: View {
+    @EnvironmentObject var store: DocumentStore
+    @EnvironmentObject var agentWatcher: AgentResponseWatcher
     let response: AgentAnnotationResponse
+    let annotation: Annotation
+    var annotationId: UUID { annotation.id }
     @Binding var showDiff: Bool
+    @State private var showThread: Bool = false
+    @State private var replyText: String = ""
+    @FocusState private var replyFocused: Bool
 
     private var actionIcon: String {
         switch response.action {
@@ -595,6 +602,7 @@ struct AgentResponseBadge: View {
         case .clarify: return "questionmark.circle.fill"
         case .suggest: return "arrow.triangle.2.circlepath"
         case .reject: return "xmark.circle.fill"
+        case .acknowledge: return "eye.circle.fill"
         }
     }
 
@@ -604,6 +612,7 @@ struct AgentResponseBadge: View {
         case .clarify: return Theme.yellow
         case .suggest: return Theme.blue
         case .reject: return Theme.red
+        case .acknowledge: return Theme.subtext0
         }
     }
 
@@ -613,7 +622,12 @@ struct AgentResponseBadge: View {
         case .clarify: return "Agent asks"
         case .suggest: return "Agent suggests"
         case .reject: return "Agent disagrees"
+        case .acknowledge: return "Agent working on it"
         }
+    }
+
+    private var thread: AnnotationThread? {
+        agentWatcher.threadFor(annotationId: annotationId)
     }
 
     var body: some View {
@@ -630,6 +644,22 @@ struct AgentResponseBadge: View {
 
                 Spacer()
 
+                // Thread indicator
+                if let thread = thread, !thread.messages.isEmpty {
+                    Button {
+                        showThread.toggle()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "bubble.left.and.bubble.right")
+                                .font(.system(size: 8))
+                            Text("\(thread.messages.count)")
+                                .font(.system(size: 9, weight: .medium))
+                        }
+                        .foregroundColor(Theme.blue)
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 Image(systemName: "sparkle")
                     .font(.system(size: 8))
                     .foregroundColor(Theme.subtext0.opacity(0.5))
@@ -639,9 +669,9 @@ struct AgentResponseBadge: View {
             Text(response.message)
                 .font(.system(size: 12))
                 .foregroundColor(Theme.primaryText.opacity(0.9))
-                .lineLimit(showDiff ? nil : 3)
+                .lineLimit(showDiff || showThread ? nil : 3)
 
-            // Suggestion preview
+            // Suggestion preview with Accept/Reject
             if response.action == .suggest, let suggested = response.suggestedText {
                 Button {
                     showDiff.toggle()
@@ -665,6 +695,112 @@ struct AgentResponseBadge: View {
                         .background(Theme.green.opacity(0.08))
                         .cornerRadius(4)
                 }
+
+                // Accept / Reject buttons
+                HStack(spacing: 8) {
+                    Button {
+                        acceptSuggestion(suggested)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text("Accept")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundColor(Theme.base)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(Theme.green)
+                        .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        store.resolveAnnotation(annotationId)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .medium))
+                            Text("Dismiss")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(Theme.subtext0)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Theme.surface0)
+                        .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+                }
+                .padding(.top, 2)
+            }
+
+            // Thread messages
+            if showThread, let thread = thread {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(thread.messages) { msg in
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: msg.role == .agent ? "sparkle" : "person.fill")
+                                .font(.system(size: 8))
+                                .foregroundColor(msg.role == .agent ? Theme.blue : Theme.primary)
+                                .frame(width: 12, alignment: .center)
+                                .padding(.top, 3)
+
+                            Text(msg.message)
+                                .font(.system(size: 11))
+                                .foregroundColor(Theme.primaryText.opacity(0.85))
+                        }
+                        .padding(.vertical, 3)
+                    }
+                }
+                .padding(.top, 4)
+            }
+
+            // Reply input (always visible for clarify, toggle for others)
+            if response.action == .clarify || showThread {
+                HStack(spacing: 6) {
+                    TextField("Reply...", text: $replyText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 11))
+                        .foregroundColor(Theme.primaryText)
+                        .focused($replyFocused)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Theme.surface0)
+                        .cornerRadius(4)
+                        .onSubmit {
+                            sendReply()
+                        }
+
+                    Button {
+                        sendReply()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(replyText.isEmpty ? Theme.overlay0 : Theme.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(replyText.isEmpty)
+                }
+                .padding(.top, 4)
+            } else if response.action != .acknowledge {
+                // Show "Reply" button to open thread
+                Button {
+                    showThread = true
+                    replyFocused = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrowshape.turn.up.left")
+                            .font(.system(size: 8))
+                        Text("Reply")
+                            .font(.system(size: 10))
+                    }
+                    .foregroundColor(Theme.subtext0)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 2)
             }
         }
         .padding(10)
@@ -674,5 +810,25 @@ struct AgentResponseBadge: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(actionColor.opacity(0.15), lineWidth: 1)
         )
+    }
+
+    private func sendReply() {
+        guard !replyText.isEmpty else { return }
+        agentWatcher.addHumanReply(annotationId: annotationId, message: replyText)
+        replyText = ""
+        showThread = true
+    }
+
+    private func acceptSuggestion(_ suggested: String) {
+        var content = store.document.content
+        let startIdx = annotation.range.startOffset
+        let endIdx = min(annotation.range.endOffset, content.count)
+        guard startIdx >= 0, startIdx < content.count, endIdx <= content.count else { return }
+
+        let start = content.index(content.startIndex, offsetBy: startIdx)
+        let end = content.index(content.startIndex, offsetBy: endIdx)
+        content.replaceSubrange(start..<end, with: suggested)
+        store.updateContent(content)
+        store.resolveAnnotation(annotationId)
     }
 }

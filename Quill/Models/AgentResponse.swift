@@ -15,6 +15,7 @@ enum AgentAction: String, Codable {
     case clarify
     case suggest
     case reject
+    case acknowledge
 }
 
 /// A document update pushed by an agent
@@ -26,10 +27,37 @@ struct AgentDocumentUpdate: Codable, Identifiable {
     let timestamp: String
 }
 
+// MARK: - Threaded conversations
+
+enum ThreadRole: String, Codable {
+    case human
+    case agent
+}
+
+struct ThreadMessage: Codable, Identifiable {
+    let id: String
+    let role: ThreadRole
+    let message: String
+    let timestamp: String
+
+    init(id: String = UUID().uuidString, role: ThreadRole, message: String, timestamp: String = ISO8601DateFormatter().string(from: Date())) {
+        self.id = id
+        self.role = role
+        self.message = message
+        self.timestamp = timestamp
+    }
+}
+
+struct AnnotationThread: Codable {
+    let annotationId: String
+    var messages: [ThreadMessage]
+}
+
 /// The agent-response.json file structure
 struct AgentResponseFile: Codable {
     let version: Int
     var annotationResponses: [AgentAnnotationResponse]
     var documentUpdates: [AgentDocumentUpdate]
+    var threads: [AnnotationThread]?
     var lastUpdated: String
 }
