@@ -42,6 +42,16 @@ struct AnnotationSidebar: View {
         filterCategory != nil || showResolved
     }
 
+    private var positionText: String? {
+        guard let selectedId = store.selectedAnnotationId,
+              let index = filteredAnnotations.firstIndex(where: { $0.id == selectedId }) else {
+            return nil
+        }
+        let annotation = filteredAnnotations[index]
+        let lineNumber = store.document.content.prefix(annotation.range.startOffset).filter { $0 == "\n" }.count + 1
+        return "\(index + 1) of \(filteredAnnotations.count) · Line \(lineNumber)"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Compact header with inline filter toggle
@@ -50,6 +60,14 @@ struct AnnotationSidebar: View {
                 Text(unresolvedCount > 0 ? "Comments (\(unresolvedCount))" : "Comments")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(Theme.primaryText)
+
+                if let position = positionText {
+                    Text("·")
+                        .foregroundColor(Theme.overlay0)
+                    Text(position)
+                        .font(.system(size: 11))
+                        .foregroundColor(Theme.overlay0)
+                }
 
                 Spacer()
 
@@ -141,25 +159,41 @@ struct AnnotationSidebar: View {
             Divider()
                 .background(Theme.surface1.opacity(0.5))
 
-            // Annotation Form (inline)
-            if showingAnnotationForm, let range = selectedRange, !selectedText.isEmpty {
-                InlineAnnotationForm(
-                    selectedText: selectedText,
-                    range: TextRange(startOffset: range.location, endOffset: range.location + range.length),
-                    onSubmit: { showingAnnotationForm = false },
-                    onCancel: { showingAnnotationForm = false }
-                )
-                .padding(12)
+            // Agent review banner
+            if agentWatcher.hasUnreadResponses, let responses = agentWatcher.responses {
+                let responseCount = responses.annotationResponses.count
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.blue)
 
-                Divider()
-                    .background(Theme.surface1.opacity(0.5))
+                    Text("\(responseCount) agent response\(responseCount == 1 ? "" : "s")")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Theme.primaryText)
+
+                    Spacer()
+
+                    Button {
+                        agentWatcher.markAllRead()
+                    } label: {
+                        Text("Mark read")
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.blue)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Theme.blue.opacity(0.06))
             }
 
             // Annotation List
             if filteredAnnotations.isEmpty {
                 EmptyStateView(
                     hasSelection: selectedRange != nil && !selectedText.isEmpty,
-                    onAddAnnotation: { showingAnnotationForm = true }
+                    onAddAnnotation: {
+                        NotificationCenter.default.post(name: .addAnnotation, object: nil)
+                    }
                 )
             } else {
                 ScrollView {
@@ -205,7 +239,7 @@ struct AnnotationSidebar: View {
                 }
             }
         }
-        .background(Theme.mantle)
+        .background(Theme.crust)
     }
 }
 
@@ -235,6 +269,9 @@ struct FilterPill: View {
             .cornerRadius(12)
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
     }
 }
 
@@ -413,9 +450,9 @@ struct CategoryPill: View {
             .padding(.vertical, 5)
             .background(isSelected ? Theme.surface1 : Color.clear)
             .foregroundColor(isSelected ? Theme.primaryText : Theme.subtext0)
-            .cornerRadius(10)
+            .cornerRadius(12)
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 12)
                     .stroke(isSelected ? Color.clear : Theme.surface1.opacity(0.5), lineWidth: 1)
             )
         }
@@ -443,81 +480,90 @@ struct AnnotationCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Main content
-            VStack(alignment: .leading, spacing: 8) {
-                // Comment text (primary content)
-                if !annotation.comment.isEmpty {
-                    Text(annotation.comment)
-                        .font(.system(size: 13))
-                        .foregroundColor(Theme.primaryText)
-                        .lineLimit(isSelected ? nil : 3)
-                }
-
-                // Selected text preview
-                HStack(spacing: 0) {
-                    Rectangle()
-                        .fill(annotation.category?.color ?? Theme.overlay1)
-                        .frame(width: 2)
-
-                    Text(annotation.selectedText.prefix(60) + (annotation.selectedText.count > 60 ? "..." : ""))
-                        .font(.system(size: 11))
-                        .foregroundColor(Theme.subtext0)
-                        .lineLimit(2)
-                        .padding(.leading, 8)
-                        .padding(.vertical, 4)
-                }
-                .padding(.leading, 2)
-
-                // Agent response section
-                if let response = agentResponse {
-                    AgentResponseBadge(response: response, annotation: annotation, showDiff: $showingSuggestionDiff)
-                        .onAppear {
-                            agentWatcher.markRead(annotationId: annotation.id)
-                        }
-                }
-
-                // Footer: category tag + actions
+            if annotation.isResolved {
+                // Collapsed resolved view
                 HStack(spacing: 8) {
-                    // Category tag (small, subtle)
-                    if let category = annotation.category {
-                        HStack(spacing: 3) {
-                            Circle()
-                                .fill(category.color)
-                                .frame(width: 5, height: 5)
-                            Text(category.label)
-                                .font(.system(size: 10))
-                                .foregroundColor(Theme.subtext0)
-                        }
-                    }
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(Theme.green.opacity(0.6))
+
+                    Text(annotation.comment)
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.subtext0)
+                        .lineLimit(1)
 
                     Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            } else {
+                // Main content
+                VStack(alignment: .leading, spacing: 8) {
+                    // Comment text (primary content)
+                    if !annotation.comment.isEmpty {
+                        Text(annotation.comment)
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.primaryText)
+                            .lineLimit(isSelected ? nil : 3)
+                    }
 
-                    // Resolved indicator or resolve button
-                    if annotation.isResolved {
-                        HStack(spacing: 3) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 9, weight: .semibold))
-                            Text("Resolved")
-                                .font(.system(size: 10))
-                        }
-                        .foregroundColor(Theme.green.opacity(0.8))
-                    } else if isHovered {
-                        Button {
-                            store.resolveAnnotation(annotation.id)
-                        } label: {
-                            HStack(spacing: 3) {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 9))
-                                Text("Resolve")
-                                    .font(.system(size: 10))
-                            }
+                    // Selected text preview
+                    HStack(spacing: 0) {
+                        Rectangle()
+                            .fill(annotation.category?.color ?? Theme.overlay1)
+                            .frame(width: 2)
+
+                        Text(annotation.selectedText.prefix(60) + (annotation.selectedText.count > 60 ? "..." : ""))
+                            .font(.system(size: 11))
                             .foregroundColor(Theme.subtext0)
+                            .lineLimit(2)
+                            .padding(.leading, 8)
+                            .padding(.vertical, 4)
+                    }
+                    .padding(.leading, 2)
+
+                    // Agent response section
+                    if let response = agentResponse {
+                        AgentResponseBadge(response: response, annotation: annotation, showDiff: $showingSuggestionDiff)
+                            .onAppear {
+                                agentWatcher.markRead(annotationId: annotation.id)
+                            }
+                    }
+
+                    // Footer: category tag + actions
+                    HStack(spacing: 8) {
+                        // Category tag (small, subtle)
+                        if let category = annotation.category {
+                            HStack(spacing: 3) {
+                                Circle()
+                                    .fill(category.color)
+                                    .frame(width: 5, height: 5)
+                                Text(category.label)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(Theme.subtext0)
+                            }
                         }
-                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        if isHovered {
+                            Button {
+                                store.resolveAnnotation(annotation.id)
+                            } label: {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 9))
+                                    Text("Resolve")
+                                        .font(.system(size: 10))
+                                }
+                                .foregroundColor(Theme.subtext0)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
+                .padding(12)
             }
-            .padding(12)
         }
         .background(
             isSelected ? Theme.primary.opacity(0.08) :
@@ -660,9 +706,6 @@ struct AgentResponseBadge: View {
                     .buttonStyle(.plain)
                 }
 
-                Image(systemName: "sparkle")
-                    .font(.system(size: 8))
-                    .foregroundColor(Theme.subtext0.opacity(0.5))
             }
 
             // Message
@@ -694,47 +737,47 @@ struct AgentResponseBadge: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Theme.green.opacity(0.08))
                         .cornerRadius(4)
-                }
 
-                // Accept / Reject buttons
-                HStack(spacing: 8) {
-                    Button {
-                        acceptSuggestion(suggested)
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 9, weight: .semibold))
-                            Text("Accept")
-                                .font(.system(size: 11, weight: .medium))
+                    // Accept / Reject buttons
+                    HStack(spacing: 8) {
+                        Button {
+                            acceptSuggestion(suggested)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text("Accept")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundColor(Theme.base)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .background(Theme.green)
+                            .cornerRadius(4)
                         }
-                        .foregroundColor(Theme.base)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(Theme.green)
-                        .cornerRadius(4)
-                    }
-                    .buttonStyle(.plain)
+                        .buttonStyle(.plain)
 
-                    Button {
-                        store.resolveAnnotation(annotationId)
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .medium))
-                            Text("Dismiss")
-                                .font(.system(size: 11))
+                        Button {
+                            store.resolveAnnotation(annotationId)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .medium))
+                                Text("Dismiss")
+                                    .font(.system(size: 11))
+                            }
+                            .foregroundColor(Theme.subtext0)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Theme.surface0)
+                            .cornerRadius(4)
                         }
-                        .foregroundColor(Theme.subtext0)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Theme.surface0)
-                        .cornerRadius(4)
-                    }
-                    .buttonStyle(.plain)
+                        .buttonStyle(.plain)
 
-                    Spacer()
+                        Spacer()
+                    }
+                    .padding(.top, 2)
                 }
-                .padding(.top, 2)
             }
 
             // Thread messages
@@ -759,7 +802,7 @@ struct AgentResponseBadge: View {
             }
 
             // Reply input (always visible for clarify, toggle for others)
-            if response.action == .clarify || showThread {
+            if showThread {
                 HStack(spacing: 6) {
                     TextField("Reply...", text: $replyText)
                         .textFieldStyle(.plain)
@@ -803,12 +846,12 @@ struct AgentResponseBadge: View {
                 .padding(.top, 2)
             }
         }
-        .padding(10)
-        .background(actionColor.opacity(0.06))
+        .padding(8)
+        .background(actionColor.opacity(0.04))
         .cornerRadius(6)
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(actionColor.opacity(0.15), lineWidth: 1)
+                .stroke(actionColor.opacity(0.1), lineWidth: 1)
         )
     }
 

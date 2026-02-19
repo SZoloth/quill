@@ -237,11 +237,11 @@ struct FindBarView: View {
             Button {
                 isShowing = false
             } label: {
-                Text("Done")
-                    .font(.caption)
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Theme.subtext0)
             }
             .buttonStyle(.plain)
-            .foregroundColor(Theme.primary)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

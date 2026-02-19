@@ -52,6 +52,13 @@ struct Theme {
     static let info = blue
     static let annotationHighlight = mauve
     static let annotationHighlightSelected = lavender
+    static let sidebarBackground = crust    // Darker than editor for clear separation
+
+    // MARK: - Functional palette (4 colors max in sidebar)
+    static let humanAnnotation = mauve       // Human-authored annotations
+    static let agentResponse = blue          // Agent responses and AI indicators
+    static let resolved = green              // Success / resolved state
+    static let actionPrimary = peach         // Primary interactive actions
 
     // MARK: - Spacing tokens
     static let spacingXS: CGFloat = 4
@@ -66,6 +73,16 @@ struct Theme {
     static let radiusMD: CGFloat = 6
     static let radiusLG: CGFloat = 8
     static let radiusPill: CGFloat = 12
+
+    // MARK: - Typography scale (4 levels only)
+    static let typeTitle: CGFloat = 28      // Document title
+    static let typeBody: CGFloat = 13       // Primary content (comments, headers)
+    static let typeCaption: CGFloat = 11    // Secondary content (previews, labels, metadata)
+    static let typeMicro: CGFloat = 10      // Tertiary (pills, tags, tiny labels)
+
+    // MARK: - Card tokens
+    static let cardPadding: CGFloat = 12
+    static let cardGap: CGFloat = 8
 
     // MARK: - Pill component tokens
     static let pillPaddingH: CGFloat = 10
